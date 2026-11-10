@@ -1,0 +1,21 @@
+<idea-plugin>
+  <id>com.uzoo.i18n.inline</id>
+  <name>i18n Translation Helper</name>
+  <version>1.6.0</version>
+  <vendor>i18n Tools</vendor>
+  <description>Shows inline translations, a pointer-anchored locale chooser, and mouse-position-based Ctrl+Click navigation with target highlighting.</description>
+  <idea-version since-build="252.28539.60" until-build="252.*"/>
+  <depends>com.intellij.modules.platform</depends>
+  <depends>JavaScript</depends>
+  <depends>org.jetbrains.plugins.vue</depends>
+  <extensions defaultExtensionNs="com.intellij">
+    <postStartupActivity implementation="com.uzoo.i18n.InlineTranslationPlugin"/>
+    <findUsagesHandlerFactory implementation="com.uzoo.i18n.LocaleKeyFindUsagesHandlerFactory" order="first"/>
+    <projectConfigurable id="com.uzoo.i18n.inline.settings" parentId="tools" displayName="i18n Translation Helper" instance="com.uzoo.i18n.TranslationSettingsConfigurable"/>
+  </extensions>
+  <actions>
+    <action id="UzooI18n.ToggleInlineTranslations" class="com.uzoo.i18n.ToggleInlineTranslationsAction" text="Hide inline translations" description="Toggle inline Chinese translations for Vue i18n calls">
+      <add-to-group group-id="ToolsMenu" anchor="last"/>
+    </action>
+  </actions>
+</idea-plugin>

@@ -1,0 +1,71 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Git Diff</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#1e1f22;color:#dfe1e5;font:14px system-ui;display:grid;grid-template-rows:54px minmax(0,1fr);height:100dvh}header,nav,.labels{display:flex;align-items:center;gap:12px;padding:0 14px;background:#2b2d30;border-bottom:1px solid #393b40}header strong{font-size:16px}input{min-width:0;width:190px;color:inherit;background:#1e1f22;border:1px solid #484b52;border-radius:5px;padding:5px 8px}header small,#position{color:#a8abb2}button{cursor:pointer;color:inherit;background:#36383d;border:1px solid #484b52;border-radius:5px;padding:5px 9px}button:hover{background:#474b54}button:focus-visible{outline:2px solid #8bb8ff}main{display:grid;grid-template-columns:minmax(170px,25%) minmax(0,1fr);min-height:0}aside{overflow:auto;border-right:1px solid #393b40;padding:10px 7px}summary{cursor:pointer;padding:6px;color:#bdc3ce}details details{margin-left:10px}aside button{display:flex;align-items:center;gap:7px;width:100%;text-align:left;background:transparent;border:0}aside button[aria-current=true]{background:#25456d}.name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.plus{color:#92ca9b}.minus{color:#ef999d}article{min-width:0;display:grid;grid-template-rows:42px 28px minmax(0,1fr)}nav b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}.labels{display:grid;grid-template-columns:1fr 1fr;color:#a8abb2}.scroll{overflow:auto}.row{display:grid;grid-template-columns:1fr 1fr;font:13px/20px Consolas,monospace}.cell{min-width:0;display:grid;grid-template-columns:52px minmax(0,1fr);border-right:1px solid #393b40}.cell i{color:#a9adb6;text-align:right;padding-right:10px;background:#252629;font-style:normal;user-select:none}.cell code{white-space:pre-wrap;overflow-wrap:anywhere;padding:0 8px;tab-size:4}.old{background:#452d32}.new{background:#293e32}.empty{background:#242529}.hunk{background:#293546;color:#a8bfdd;padding:3px 12px}.notice{padding:16px;color:#adb3be}@media(max-width:600px){main{grid-template-columns:135px minmax(0,1fr)}.cell{grid-template-columns:29px minmax(0,1fr)}.cell i{padding-right:4px}}
+</style>
+<header><strong>Git Diff</strong><small>Local worktree · Read only</small><input id="filter" type="search" aria-label="Filter changed files" placeholder="Filter files (/)"><button id="refresh">Refresh</button></header>
+<main><aside id="tree" aria-label="Changed files"></aside><article><nav><b id="file">Select a file</b><span id="position"></span><button id="prev" aria-label="Previous change">↑</button><button id="next" aria-label="Next change">↓</button></nav><div class="labels"><span id="left">Before</span><span id="right">After</span></div><div class="scroll" id="view"></div></article></main>
+<script>
+const $=id=>document.getElementById(id);
+const el=(tag,value='',cls='')=>Object.assign(document.createElement(tag),{textContent:value,className:cls});
+const names={staged:'Staged',unstaged:'Unstaged',untracked:'Untracked'};
+const labels={staged:['HEAD','Index'],unstaged:['Index','Working tree'],untracked:['New file','Working tree']};
+let groups={}, selection, request=0, anchors=[], cursor=-1;
+async function api(path){const r=await fetch(path);if(!r.ok)throw Error('Git data unavailable');return r.json()}
+function message(value){$('view').replaceChildren(el('p',value,'notice'))}
+function marker(){ $('position').textContent=anchors.length ? (cursor+1)+' / '+anchors.length : ''; }
+function jump(step){if(!anchors.length)return;cursor=Math.max(0,Math.min(anchors.length-1,cursor+step));anchors[cursor].scrollIntoView({block:'start'});marker()}
+$('prev').onclick=()=>jump(-1);$('next').onclick=()=>jump(1);
+function cell(entry,kind){const e=el('div','','cell '+(entry?kind:'empty'));e.append(el('i',entry?.[0]??''),el('code',entry?.[1]??''));return e}
+function render(patch){
+  const out=document.createDocumentFragment();let a=0,b=0,active=false,old=[],fresh=[];
+  const row=(x,y,k,l)=>{const r=el('div','','row');r.append(cell(x,k),cell(y,l));out.append(r);return r};
+  const flush=()=>{for(let i=0;i<Math.max(old.length,fresh.length);i++){const r=row(old[i],fresh[i],'old','new');if(!i)anchors.push(r)}old=[];fresh=[]};
+  for(const line of patch.split('\n')){
+    const h=/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line);
+    if(h){flush();active=true;a=+h[1];b=+h[2];out.append(el('div',line,'hunk'));continue}
+    if(!active)continue;
+    const value=line.slice(1);
+    if(line.startsWith('-'))old.push([a++,value]);
+    if(line.startsWith('+'))fresh.push([b++,value]);
+    if(line.startsWith(' ')){flush();row([a++,value],[b++,value],'','')}
+  }
+  flush();
+  if(!active)message(patch||'No text changes.');
+  else $('view').replaceChildren(out);
+  $('view').scrollTop=0;marker();
+}
+async function open(group,path,button){
+  const id=++request;selection={group,path};anchors=[];cursor=-1;marker();
+  $('tree').querySelector('[aria-current]')?.removeAttribute('aria-current');
+  button.setAttribute('aria-current','true');$('file').textContent=path;$('file').title=path;
+  [$('left').textContent,$('right').textContent]=labels[group];message('Loading…');
+  try{const data=await api('diff?'+new URLSearchParams({group,path}));if(id===request)render(data.patch)}
+  catch{if(id===request)message('Could not load this diff. Refresh and try again.')}
+}
+function draw(){
+  $('refresh').disabled=true;
+  {$('tree').replaceChildren();let first,match;
+    for(const [group,files] of Object.entries(groups)){ const entries=files.filter(({path})=>path.toLowerCase().includes(query));
+      const box=el('details');box.open=entries.length>0;box.append(el('summary',names[group]+' ('+entries.length+')'));$('tree').append(box);
+      const dirs=new Map([['',box]]);
+      for(const entry of entries){
+        const parts=entry.path.split('/');const file=parts.pop();let prefix='',parent=box;
+        for(const part of parts){prefix+=part+'/';if(!dirs.has(prefix)){const d=el('details');d.open=true;d.append(el('summary',part));parent.append(d);dirs.set(prefix,d)}parent=dirs.get(prefix)}
+        const button=el('button');button.title=entry.path;button.append(el('span',entry.status),el('span',file,'name'));
+        if(entry.counts?.[0] && entry.counts[0]!=='-')button.append(el('small','+'+entry.counts[0],'plus'),el('small','−'+entry.counts[1],'minus'));
+        button.onclick=()=>open(group,entry.path,button);parent.append(button);first??=button;
+        if(selection?.group===group&&selection.path===entry.path)match=button;
+      }
+    }
+    if(query&&!match){if(!first)$('tree').append(el('p','No matching files.','notice'));return} if(match||first){(match||first).setAttribute('aria-current','true');(match||first).click()}
+    else{++request;selection=null;anchors=[];cursor=-1;marker();$('file').textContent='No changes';message('Working tree is clean.')}
+  }
+}
+async function refresh(){
+  refresh.disabled=true;
+  try{groups=await api('changes');draw()}
+  catch{message('Could not read Git changes.')}
+  finally{$('refresh').disabled=false}
+}
+$('refresh').onclick=refresh;refresh();
+</script></html>
