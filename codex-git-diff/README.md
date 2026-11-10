@@ -1,12 +1,12 @@
 # Git Diff for Codex
 
-Requires Git, Node.js, and PowerShell 7 for installation. No npm install is needed.
+Requires Git, Node.js, and Windows PowerShell 5.1 or PowerShell 7 for installation. No npm install is needed.
 
 From the toolbox root, preview a worktree with: `node codex-git-diff/server.mjs "D:/path/to/worktree"`. Open the printed URL in
 the Codex built-in browser. Stop the terminal process to close the viewer.
 
 To register the plugin in your personal marketplace, run
-`pwsh -File codex-git-diff/install.ps1`, restart Codex, then install **git-diff**
+`powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\codex-git-diff\install.ps1`, restart Codex, then install **git-diff**
 from that marketplace. Start a local chat in the worktree and ask the plugin to
 open the current Git changes.
 
