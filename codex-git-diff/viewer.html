@@ -2,7 +2,7 @@
 <style>
 *{box-sizing:border-box}body{margin:0;background:#1e1f22;color:#dfe1e5;font:14px system-ui;display:grid;grid-template-rows:54px minmax(0,1fr);height:100dvh}header,nav,.labels{display:flex;align-items:center;gap:12px;padding:0 14px;background:#2b2d30;border-bottom:1px solid #393b40}header strong{font-size:16px}input{min-width:0;width:190px;color:inherit;background:#1e1f22;border:1px solid #484b52;border-radius:5px;padding:5px 8px}header small,#position{color:#a8abb2}button{cursor:pointer;color:inherit;background:#36383d;border:1px solid #484b52;border-radius:5px;padding:5px 9px}button:hover{background:#474b54}button:focus-visible{outline:2px solid #8bb8ff}main{display:grid;grid-template-columns:minmax(170px,25%) minmax(0,1fr);min-height:0}aside{overflow:auto;border-right:1px solid #393b40;padding:10px 7px}summary{cursor:pointer;padding:6px;color:#bdc3ce}details details{margin-left:10px}aside button{display:flex;align-items:center;gap:7px;width:100%;text-align:left;background:transparent;border:0}aside button[aria-current=true]{background:#25456d}.name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.plus{color:#92ca9b}.minus{color:#ef999d}article{min-width:0;display:grid;grid-template-rows:42px 28px minmax(0,1fr)}nav b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}.labels{display:grid;grid-template-columns:1fr 1fr;color:#a8abb2}.scroll{overflow:auto}.row{display:grid;grid-template-columns:1fr 1fr;font:13px/20px Consolas,monospace}.cell{min-width:0;display:grid;grid-template-columns:52px minmax(0,1fr);border-right:1px solid #393b40}.cell i{color:#a9adb6;text-align:right;padding-right:10px;background:#252629;font-style:normal;user-select:none}.cell code{white-space:pre-wrap;overflow-wrap:anywhere;padding:0 8px;tab-size:4}.old{background:#452d32}.new{background:#293e32}.empty{background:#242529}.hunk{background:#293546;color:#a8bfdd;padding:3px 12px}.notice{padding:16px;color:#adb3be}@media(max-width:600px){main{grid-template-columns:135px minmax(0,1fr)}.cell{grid-template-columns:29px minmax(0,1fr)}.cell i{padding-right:4px}}
 </style>
-<header><strong>Git Diff</strong><small>Local worktree · Read only</small><input id="filter" type="search" aria-label="Filter changed files" placeholder="Filter files (/)"><button id="refresh">Refresh</button></header>
+<header><strong>Git Diff</strong><small id="repo">Detecting worktree…</small><input id="filter" type="search" aria-label="Filter changed files" placeholder="Filter files (/)"><button id="refresh">Refresh</button></header>
 <main><aside id="tree" aria-label="Changed files"></aside><article><nav><b id="file">Select a file</b><span id="position"></span><button id="prev" aria-label="Previous change">↑</button><button id="next" aria-label="Next change">↓</button></nav><div class="labels"><span id="left">Before</span><span id="right">After</span></div><div class="scroll" id="view"></div></article></main>
 <script>
 const $=id=>document.getElementById(id);
@@ -63,7 +63,7 @@ function draw(){
 }
 async function refresh(){
   refresh.disabled=true;
-  try{groups=await api('changes');draw()}
+  try{const [repo, changes]=await Promise.all([api('repo'),api('changes')]);groups=changes;draw();const badge=document.getElementById('repo');badge.textContent=repo.root.split(/[\\/]/).pop()+' · '+repo.branch;badge.title=repo.root}
   catch{message('Could not read Git changes.')}
   finally{$('refresh').disabled=false}
 }

@@ -3,14 +3,14 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 
-const cwd = process.argv[2] || process.cwd();
+let cwd = process.argv[2] || process.cwd();
 function git(args) {
   return execFileSync('git', ['--no-optional-locks', ...args], {
     cwd, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, timeout: 10000,
     windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
   });
 }
-git(['rev-parse', '--show-toplevel']);
+cwd = git(['rev-parse', '--show-toplevel']).trimEnd();
 const token = '/' + randomBytes(18).toString('hex');
 const html = readFileSync(new URL('./viewer.html', import.meta.url));
 const groups = { staged: ['--cached'], unstaged: [], untracked: null };
@@ -44,6 +44,7 @@ const server = createServer((req,res) => {
     if (req.method !== 'GET' || req.headers.host !== '127.0.0.1:' + server.address().port) { res.writeHead(403).end(); return; }
     if (url.pathname === token + '/') { res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'}).end(html); return; }
     const send = data => res.writeHead(200,{'Content-Type':'application/json; charset=utf-8'}).end(JSON.stringify(data));
+    if (url.pathname === token + '/repo') { send({ root: cwd, branch: git(['branch','--show-current']).trim() || 'Detached HEAD' }); return; }
     if (url.pathname === token + '/changes') { send(Object.fromEntries(Object.keys(groups).map(g => [g,list(g)]))); return; }
     if (url.pathname === token + '/diff') {
       const group = url.searchParams.get('group'), path = url.searchParams.get('path');

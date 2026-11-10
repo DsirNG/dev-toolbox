@@ -18,3 +18,4 @@ a deletion and an addition. The viewer opens in the browser beside the chat.
 
 Filter the file tree by path with **/**. Use **Alt+Up** and **Alt+Down**
 to move between changes in the selected diff. Clear the filter to restore all files.
+In Codex, the plugin detects the current chat's Git worktree and loads changes automatically. The header shows the repository and branch; hover to see the full worktree path. No import is needed.
